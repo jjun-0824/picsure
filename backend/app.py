@@ -105,7 +105,7 @@ def get_file():
     res = db_class.executeOne(sql)
 
     if res and f'p{photo_num}' in res:
-        url = res[f'p{photo_num}']         #res에서 p2값 url을 추출
+        url = res[f'p{photo_num}']         #res에서 해당 photo의 url을 추출
 
         #return render_template('img.html', image_url=url)      #해당 url값을 img src로 사용할 수 있도록 image_url을 통해 넘겨줌 (test)
         return jsonify({'image_url': url})                      #해당 url값을 json 형식으로 return
@@ -181,19 +181,20 @@ def saveFavorA():
     db = dbconn.Database()
     data = request.form
 
+    link = int(data['link'])
     photo_num = int(data['photo_num'])
     favor = 1 if data['favor'] == 'Yes' else 0          #favor값을 'Yes'이면 1, 'No'이면 0으로 변환
 
     if photo_num == 1 and favor in [1, 0]:
-        sql = f"UPDATE Link SET a_res1 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res1에 응답을 저장
+        sql = f"UPDATE Link SET a_res1 = {favor} WHERE link_id = {link}"     #해당 link_id의 Link 테이블에서 a_res1에 응답을 저장
         db.executeOne(sql)
         db.commit()
     elif photo_num == 2 and favor in [1, 0]:
-        sql = f"UPDATE Link SET a_res2 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res2에 응답을 저장
+        sql = f"UPDATE Link SET a_res2 = {favor} WHERE link_id = {link}"     #해당 link_id의 Link 테이블에서 a_res2에 응답을 저장
         db.executeOne(sql)
         db.commit()
     elif photo_num == 3 and favor in [1, 0]:
-        sql = f"UPDATE Link SET a_res3 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res3에 응답을 저장
+        sql = f"UPDATE Link SET a_res3 = {favor} WHERE link_id = {link}"     #해당 link_id의 Link 테이블에서 a_res3에 응답을 저장
         db.executeOne(sql)
         db.commit()
 
@@ -204,9 +205,10 @@ def saveFavorA():
 def getFavorA():
     db = dbconn.Database()
     photo_num = int(requests.args.get('photo_num'))     #몇번째 사진인지 photo_num으로 받아옴
+    link = int(requests.args.get('link'))               #link_id 받아옴
 
     if photo_num == 1:                           
-        sql = "SELECT a_res1 FROM app_db.Link WHERE link_id = 1"        #photo_num이 1이라면이라면 해당 link_id의 Link테이블에 가서 a_res1값을 가져옴
+        sql = f"SELECT a_res1 FROM app_db.Link WHERE link_id = {link}"        #photo_num이 1이라면이라면 해당 link_id의 Link테이블에 가서 a_res1값을 가져옴
         r = db.executeOne(sql)
         favor = r['a_res1'] if r else None
         if favor is not None:
@@ -214,7 +216,7 @@ def getFavorA():
         else:
             return jsonify({'result': 'yet'})                               #favor 값이 None이라면 'yet' return
     elif photo_num == 2:
-        sql = "SELECT a_res2 FROM app_db.Link WHERE link_id = 1"
+        sql = f"SELECT a_res2 FROM app_db.Link WHERE link_id = {link}"
         r = db.executeOne(sql)
         favor = r['a_res2'] if r else None
         if favor is not None:
@@ -222,7 +224,7 @@ def getFavorA():
         else:
             return jsonify({'result': 'yet'})
     elif photo_num == 3:
-        sql = "SELECT a_res3 FROM app_db.Link WHERE link_id = 1"
+        sql = f"SELECT a_res3 FROM app_db.Link WHERE link_id = {link}"
         r = db.executeOne(sql)
         favor = r['a_res3'] if r else None
         if favor is not None:
@@ -236,19 +238,20 @@ def saveFavorB():
     db = dbconn.Database()
     data = request.form
 
+    link = int(data['link'])
     photo_num = int(data['photo_num'])
     favor = 1 if data['favor'] == 'Yes' else 0          #favor값을 'Yes'이면 1, 'No'이면 0으로 변환
 
     if photo_num == 1 and favor in [1, 0]:
-        sql = f"UPDATE Link SET b_res1 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res1에 응답을 저장
+        sql = f"UPDATE Link SET b_res1 = {favor} WHERE link_id = {link}"     #해당 link_id의 Link 테이블에서 b_res1에 응답을 저장
         db.executeOne(sql)
         db.commit()
     elif photo_num == 2 and favor in [1, 0]:
-        sql = f"UPDATE Link SET b_res2 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res2에 응답을 저장
+        sql = f"UPDATE Link SET b_res2 = {favor} WHERE link_id = {link}"     #해당 link_id의 Link 테이블에서 b_res2에 응답을 저장
         db.executeOne(sql)
         db.commit()
     elif photo_num == 3 and favor in [1, 0]:
-        sql = f"UPDATE Link SET b_res3 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res3에 응답을 저장
+        sql = f"UPDATE Link SET b_res3 = {favor} WHERE link_id = {link}"     #해당 link_id의 Link 테이블에서 b_res3에 응답을 저장
         db.executeOne(sql)
         db.commit()
 
@@ -259,9 +262,10 @@ def saveFavorB():
 def getFavorB():
     db = dbconn.Database()
     photo_num = int(requests.args.get('photo_num'))     #몇번째 사진인지 photo_num으로 받아옴
+    link = int(requests.args.get('link'))               #link_id 받아옴
 
     if photo_num == 1:                           
-        sql = "SELECT b_res1 FROM app_db.Link WHERE link_id = 1"        #photo_num이 1이라면이라면 해당 link_id의 Link테이블에 가서 a_res1값을 가져옴
+        sql = f"SELECT b_res1 FROM app_db.Link WHERE link_id = {link}"        #photo_num이 1이라면이라면 해당 link_id의 Link테이블에 가서 b_res1값을 가져옴
         r = db.executeOne(sql)
         favor = r['b_res1'] if r else None
         if favor is not None:
@@ -269,7 +273,7 @@ def getFavorB():
         else:
             return jsonify({'result': 'yet'})                               #favor 값이 None이라면 'yet' return
     elif photo_num == 2:
-        sql = "SELECT b_res2 FROM app_db.Link WHERE link_id = 1"
+        sql = f"SELECT b_res2 FROM app_db.Link WHERE link_id = {link}"
         r = db.executeOne(sql)
         favor = r['b_res2'] if r else None
         if favor is not None:
@@ -277,7 +281,7 @@ def getFavorB():
         else:
             return jsonify({'result': 'yet'})
     elif photo_num == 3:
-        sql = "SELECT b_res3 FROM app_db.Link WHERE link_id = 1"
+        sql = f"SELECT b_res3 FROM app_db.Link WHERE link_id = {link}"
         r = db.executeOne(sql)
         favor = r['b_res3'] if r else None
         if favor is not None:
