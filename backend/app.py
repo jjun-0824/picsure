@@ -76,33 +76,38 @@ s3 = boto3.client('s3',aws_access_key_id=AWS_ACCESS_KEY,aws_secret_access_key=AW
 #s3버킷에 업로드 후 해당 image의 url 바로 db에 update
 @app.route('/imgupload', methods=['POST'])
 def upload_file():
-    file = request.files['file']
+    for i in range(1, 4):
+        file = request.files.get(f'file{i}')
 
-    s3.upload_fileobj(file, 'myphotobuckettt', file.filename)
+        if file:
+            s3.upload_fileobj(file, 'myphotobuckettt', file.filename)
 
-    db_class = mod_dbconn.Database()
-    url = f"https://myphotobuckettt.s3.ap-northeast-2.amazonaws.com/{file.filename}"
+            db_class = dbconn.Database()
+            url = f"https://myphotobuckettt.s3.ap-northeast-2.amazonaws.com/{file.filename}"
 
-    sql = "UPDATE User SET p2 = %s WHERE user_id = 1"
-    db_class.execute(sql, (url,))
-    db_class.commit()
+            sql = "UPDATE User SET p{i} = %s WHERE user_id = 1"
+            db_class.execute(sql, (url,))
+            db_class.commit()
 
-    return f"https://myphotobuckettt.s3.ap-northeast-2.amazonaws.com/{file.filename}"
+    return {}
 
 #s3 test - url을 통해서 image가져오기
 #image 불러올 때 img src="url"로 불러오기 가능 확인
 #db에서 해당 image의 url을 가져와서 그 url을 img src로 사용하도록 html로 넘겨주는 방식 (<img src="{{ image_url }}" alt="Rendered Image">)
 @app.route('/getimg')
 def get_file():
+    data = request.form
+    photo_num = int(data['photo_num'])
+    
     db_class = mod_dbconn.Database()
 
-    sql = "SELECT p2 FROM app_db.User WHERE user_id = 1"
+    sql = f"SELECT p{photo_num} FROM app_db.User WHERE user_id = 1"
     res = db_class.executeOne(sql)
 
-    if res and 'p2' in res:
-        url = res['p2']         #res에서 p2값 url을 추출
+    if res and f'p{photo_num}' in res:
+        url = res[f'p{photo_num}']         #res에서 p2값 url을 추출
 
-        #return render_template('img.html', image_url=url)      #해당 url값을 img src로 사용할 수 있도록 image_url을 통해 넘겨줌 (test시)
+        #return render_template('img.html', image_url=url)      #해당 url값을 img src로 사용할 수 있도록 image_url을 통해 넘겨줌 (test)
         return jsonify({'image_url': url})                      #해당 url값을 json 형식으로 return
 
 
@@ -114,8 +119,6 @@ def select():
     row = db_class.executeAll(sql)
 
     print(row)
-
-    #return render_template('db.html', resultData=row[0])
 
     return row
 
@@ -172,84 +175,115 @@ def upload():
 
     return render_template('get_photo_a.html',image=filepath)
 
-resp_dict = {               #user_a의 각 사진에 대한 response를 저장하는 dictionary
-    'user_a': {
-        1: None,
-        2: None,
-        3: None
-    }
-}
 
 @app.route('/saveFavorA', methods=['POST'])
 def saveFavorA():
-    data = request.form         #photo_num과 user_a의 favor 받아옴
+    db = dbconn.Database()
+    data = request.form
 
     photo_num = int(data['photo_num'])
-    favor = data['favor']
+    favor = 1 if data['favor'] == 'Yes' else 0          #favor값을 'Yes'이면 1, 'No'이면 0으로 변환
 
-    if photo_num in [1, 2, 3] and favor in ['Yes', 'No']:
-        resp_dict['user_a'][photo_num] = favor          #해당되는 photo_num과 그에 대한 user_a의 response를 dictionary에 저장
+    if photo_num == 1 and favor in [1, 0]:
+        sql = f"UPDATE Link SET a_res1 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res1에 응답을 저장
+        db.executeOne(sql)
+        db.commit()
+    elif photo_num == 2 and favor in [1, 0]:
+        sql = f"UPDATE Link SET a_res2 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res2에 응답을 저장
+        db.executeOne(sql)
+        db.commit()
+    elif photo_num == 3 and favor in [1, 0]:
+        sql = f"UPDATE Link SET a_res3 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res3에 응답을 저장
+        db.executeOne(sql)
+        db.commit()
 
-    # 서버측으로 POST요청 보내는 경우
-    url = 'http://server_domain/saveFavorA'
-    data = {'photo_num': photo_num, 'favor': favor}
-
-    response = requests.post(url, data=data)            #저장된 data들과 함께 서버의 엔드포인트로 POST요청을 보냄
-    print(response.text)
     return {}
+    
 
 @app.route('/getFavorA', methods=['GET'])               
 def getFavorA():
+    db = dbconn.Database()
+    photo_num = int(requests.args.get('photo_num'))     #몇번째 사진인지 photo_num으로 받아옴
 
-    photo_num = int(request.args.get('photo_num'))  #몇번째 사진인지 photo_num으로 받아옴
-
-    if photo_num in [1, 2, 3]:
-        favor = resp_dict['user_a'].get(photo_num)      #해당 photo_num에 대한 'favor'를 dictionary에서 받아옴
-
-        if favor is not None:                           #favor이 None이 아니라면 'Yes'인지 'No'인지 확인 후 'Yes'이면 result: true를 json형식으로 return, 'No'이면 result: false를 json형식으로 return
-            return jsonify({'result': 'true' if favor == 'Yes' else 'false'})
-        else:                                           #favor이 None이라면 아직 사용자의 응답이 선택되지 않았으므로 result: yet을 json형식으로 return
+    if photo_num == 1:                           
+        sql = "SELECT a_res1 FROM app_db.Link WHERE link_id = 1"        #photo_num이 1이라면이라면 해당 link_id의 Link테이블에 가서 a_res1값을 가져옴
+        r = db.executeOne(sql)
+        favor = r['a_res1'] if r else None
+        if favor is not None:
+            return jsonify({'result': 'true' if favor == 1 else 'false'})   #favor 값이 1이라면 'true' return, 0이라면 'false' return
+        else:
+            return jsonify({'result': 'yet'})                               #favor 값이 None이라면 'yet' return
+    elif photo_num == 2:
+        sql = "SELECT a_res2 FROM app_db.Link WHERE link_id = 1"
+        r = db.executeOne(sql)
+        favor = r['a_res2'] if r else None
+        if favor is not None:
+            return jsonify({'result': 'true' if favor == 1 else 'false'})
+        else:
             return jsonify({'result': 'yet'})
+    elif photo_num == 3:
+        sql = "SELECT a_res3 FROM app_db.Link WHERE link_id = 1"
+        r = db.executeOne(sql)
+        favor = r['a_res3'] if r else None
+        if favor is not None:
+            return jsonify({'result': 'true' if favor == 1 else 'false'})
+        else:
+            return jsonify({'result': 'yet'})
+            
         
-resp_dict_2 = {               #user_a의 각 사진에 대한 response를 저장하는 dictionary
-    'user_b': {
-        1: None,
-        2: None,
-        3: None
-    }
-}
 @app.route('/saveFavorB', methods=['POST'])
 def saveFavorB():
-    data = request.form         #photo_num과 user_a의 favor 받아옴
+    db = dbconn.Database()
+    data = request.form
 
     photo_num = int(data['photo_num'])
-    favor = data['favor']
+    favor = 1 if data['favor'] == 'Yes' else 0          #favor값을 'Yes'이면 1, 'No'이면 0으로 변환
 
-    if photo_num in [1, 2, 3] and favor in ['Yes', 'No']:
-        resp_dict_2['user_b'][photo_num] = favor          #해당되는 photo_num과 그에 대한 user_a의 response를 dictionary에 저장
-        if photo_num in [1, 2, 3] and favor in ['Yes', 'No']:
-            resp_dict_2['user_a'][photo_num] = favor          #해당되는 photo_num과 그에 대한 user_a의 response를 dictionary에 저장
+    if photo_num == 1 and favor in [1, 0]:
+        sql = f"UPDATE Link SET b_res1 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res1에 응답을 저장
+        db.executeOne(sql)
+        db.commit()
+    elif photo_num == 2 and favor in [1, 0]:
+        sql = f"UPDATE Link SET b_res2 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res2에 응답을 저장
+        db.executeOne(sql)
+        db.commit()
+    elif photo_num == 3 and favor in [1, 0]:
+        sql = f"UPDATE Link SET b_res3 = {favor} WHERE link_id = 1"     #해당 link_id의 Link 테이블에서 a_res3에 응답을 저장
+        db.executeOne(sql)
+        db.commit()
 
-    # 서버측으로 POST요청 보내는 경우
-    url = 'http://server_domain/saveFavorA'
-    data = {'photo_num': photo_num, 'favor': favor}
-
-    response = requests.post(url, data=data)            #저장된 data들과 함께 서버의 엔드포인트로 POST요청을 보냄
-    print(response.text)
     return {}
+    
 
 @app.route('/getFavorB', methods=['GET'])               
 def getFavorB():
-    photo_num = int(request.args.get('photo_num'))      #몇번째 사진인지 photo_num으로 받아옴
+    db = dbconn.Database()
+    photo_num = int(requests.args.get('photo_num'))     #몇번째 사진인지 photo_num으로 받아옴
 
-    if photo_num in [1, 2, 3]:
-        favor = resp_dict_2['user_b'].get(photo_num)      #해당 photo_num에 대한 'favor'를 dictionary에서 받아옴
-
-        if favor is not None:                           #favor이 None이 아니라면 'Yes'인지 'No'인지 확인 후 'Yes'이면 result: true를 json형식으로 return, 'No'이면 result: false를 json형식으로 return
-            return jsonify({'result': 'true' if favor == 'Yes' else 'false'})
-        else:                                           #favor이 None이라면 아직 사용자의 응답이 선택되지 않았으므로 result: yet을 json형식으로 return
+    if photo_num == 1:                           
+        sql = "SELECT b_res1 FROM app_db.Link WHERE link_id = 1"        #photo_num이 1이라면이라면 해당 link_id의 Link테이블에 가서 a_res1값을 가져옴
+        r = db.executeOne(sql)
+        favor = r['b_res1'] if r else None
+        if favor is not None:
+            return jsonify({'result': 'true' if favor == 1 else 'false'})   #favor 값이 1이라면 'true' return, 0이라면 'false' return
+        else:
+            return jsonify({'result': 'yet'})                               #favor 값이 None이라면 'yet' return
+    elif photo_num == 2:
+        sql = "SELECT b_res2 FROM app_db.Link WHERE link_id = 1"
+        r = db.executeOne(sql)
+        favor = r['b_res2'] if r else None
+        if favor is not None:
+            return jsonify({'result': 'true' if favor == 1 else 'false'})
+        else:
             return jsonify({'result': 'yet'})
-
+    elif photo_num == 3:
+        sql = "SELECT b_res3 FROM app_db.Link WHERE link_id = 1"
+        r = db.executeOne(sql)
+        favor = r['b_res3'] if r else None
+        if favor is not None:
+            return jsonify({'result': 'true' if favor == 1 else 'false'})
+        else:
+            return jsonify({'result': 'yet'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
